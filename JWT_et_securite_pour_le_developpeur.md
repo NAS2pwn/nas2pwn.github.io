@@ -296,22 +296,20 @@ Un pirate peut modifier le KID de son jeton pour pointer vers un fichier du serv
 
 Header
 
-```json
-{
-	"alg" : "HS256",
-	"typ" : "JWT",
-	"kid" : "secret.key" "../www/html/robots.txt"
-}
-```
+<div class="language-json highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="p">{</span><span class="w">
+	</span><span class="nl">"alg"</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="s2">"HS256"</span><span class="p">,</span><span class="w">
+	</span><span class="nl">"typ"</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="s2">"JWT"</span><span class="p">,</span><span class="w">
+	</span><span class="nl">"kid"</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="s2"><strike>"secret.key"</strike></span><span class="w"> </span><span class="s2">"../www/html/robots.txt"</span><span class="w">
+</span><span class="p">}</span><span class="w">
+</span></code></pre></div></div>
 
 Payload
 
-```json
-{
-	"username" : "h4xor",
-	"isAdmin" : 0 1
-}
-``` 
+<div class="language-json highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="p">{</span><span class="w">
+	</span><span class="nl">"username"</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="s2">"h4xor"</span><span class="p">,</span><span class="w">
+	</span><span class="nl">"isAdmin"</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="mi"><strike>0</strike></span><span class="w"> </span><span class="mi">1</span><span class="w">
+</span><span class="p">}</span><span class="w">
+</span></code></pre></div></div>
 
 Il lui suffit ensuite de signer son faux jeton avec le contenu du fichier `robots.txt`, puis de le soumettre au serveur !
 
@@ -325,21 +323,19 @@ Le KID sert alors à indiquer l'ID de la clé à utiliser pour vérifier la sign
 
 L'application va devoir faire un appel à la base de données pour récupérer le secret à chaque fois qu'il vérifie un jeton, en SQL :
 
-```sql
-SELECT secretPlain FROM secrets where id=$kid limit 0,1;
-```
+<div class="language-sql highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">SELECT</span> <span class="n">secretPlain</span> <span class="k">FROM</span> <span class="n">secrets</span> <span class="k">where</span> <span class="n">id</span><span class="o">=</span><span class="n">$kid</span> <span class="k">limit</span> <span class="mi">0</span><span class="p">,</span><span class="mi">1</span><span class="p">;</span>
+</code></pre></div></div>
 
 Si le KID n'est pas filtré contre les injections SQL, l'attaquant peut alors insérer sa propre clé ou mener des attaques SQL à l'aveugle pour voler des informations !
 
 Ici il insère son propre secret dans la base de données, la clé d'ID 72 de la table sera `je tai hacke mdr` :
 
-```json
-{
-	"alg" : "HS256",
-	"typ" : "JWT",
-	"kid" : 2 "2; INSERT INTO secrets VALUES (72,'je tai hacke mdr');--"
-}
-```
+<div class="language-json highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="p">{</span><span class="w">
+	</span><span class="nl">"alg"</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="s2">"HS256"</span><span class="p">,</span><span class="w">
+	</span><span class="nl">"typ"</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="s2">"JWT"</span><span class="p">,</span><span class="w">
+	</span><span class="nl">"kid"</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="mi"><strike>2</strike></span><span class="w"> </span><span class="s2">"2; INSERT INTO secrets VALUES (72,'je tai hacke mdr');--"</span><span class="w">
+</span><span class="p">}</span><span class="w">
+</span></code></pre></div></div>
 
 Il lui suffit ensuite de fabriquer son jeton et de le signer avec le secret qu'il a inséré, en indiquant bien le KID 72 dans le header :
 
