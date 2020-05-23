@@ -12,7 +12,7 @@ Si vous vous intéressez à JWT, c’est sûrement que vous êtes familiers avec
 
 Pour rappel, le principe de la session côté serveur est le suivant : le serveur génère un identifiant de session (le fameux `PHPSESSID` en PHP) qu’il associe à un tableau associatif (`$_SESSION[]` en PHP) et qu’il retourne au client sous forme de cookie (via l’en-tête `Set-Cookie`).
 
-En général, on se sert de cette technologie pour mémoriser les infos de l'utilisateur au cours de sa navigation, et qu'il reste authentifié :
+En général, on se sert de cette technologie pour mémoriser les infos de l’utilisateur au cours de sa navigation, et qu’il reste authentifié :
 
 ![Diagramme de séquence du protocole d'authentification avec une session côté serveur](images/session_finish.jpg)
 
@@ -201,12 +201,11 @@ Maintenant, un cas plus complexe. Imaginons une application gérant la signature
 
 Il ne peut à priori pas signer de jeton avec la clé publique uniquement, sauf si il remplace RSA par HMAC dans `alg` !
 
-```json
-{
- "alg" : "RS256" "HS256",
- "typ" : "JWT"
-}
-```
+<div class="language-json highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="p">{</span><span class="w">
+ </span><span class="nl">"alg"</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="s2"><strike>"RS256"</strike></span><span class="w"> </span><span class="s2">"HS256"</span><span class="p">,</span><span class="w">
+ </span><span class="nl">"typ"</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="s2">"JWT"</span><span class="w">
+</span><span class="p">}</span><span class="w">
+</span></code></pre></div></div>
 
 En effet, le serveur va penser que la clé publique utilisée pour vérifier le jeton est également la clé à utiliser pour signer le jeton, car HMAC est une méthode de chiffrement symétrique.
 
