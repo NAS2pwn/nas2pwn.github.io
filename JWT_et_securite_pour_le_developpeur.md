@@ -253,7 +253,7 @@ Puisque nous n’avons pas à nous souvenir du secret par cœur, qui sera de tou
 
 Il est possible de spécifier la clé à utiliser pour vérifier la signature d'un jeton dans son header, grâce au champ standard `kid`, qui signifie "Key ID".
 
-C'est une fonctionnalité utile quand on utilise plusieurs clés de chiffrement pour préciser quelle clé il faut utiliser pour vérifier chaque jeton.
+C'est une fonctionnalité utile quand on utilise plusieurs clés de chiffrement.
 
 Il n'y a pas de restrictions quant à la forme que le KID peut prendre : ça peut être l'ID d'une clé sous forme numérique par exemple, ou bien le chemin vers un fichier contenant la clé...
 
@@ -269,14 +269,14 @@ Petit exemple :
 
 Ici, le serveur va utiliser la clé n°2 pour vérifier la signature du jeton : ce que le développeur a défini comme étant la clé n°2 en fait.
 
-Comme avec le champ `alg`, un utilisateur malveillant peut modifier le KID de son jeton pour tenter de duper le serveur.
-On va voir deux exemples d'attaque du KID.
+Et comme avec le champ `alg`, un utilisateur malveillant peut modifier le KID de son jeton pour tenter de duper le serveur.
+On va voir deux exemples d'attaque via le KID.
 
 ##### Cas 1:
 
 Imaginons que le KID serve à indiquer le chemin vers le fichier contenant la clé de chiffrement :
 
-Voici le header (le KID est dans le champ `kid`)
+Voici le header
 
 ```json
 {
