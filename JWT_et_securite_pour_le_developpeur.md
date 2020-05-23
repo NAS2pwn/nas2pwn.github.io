@@ -408,30 +408,22 @@ Heureusement, il existe des solutions à ce problème 😀
 
 On peut employer un mécanisme à deux jetons :
 
-- Le premier jeton est celui qui sert à authentifier l’utilisateur, appelons le jeton d'authentification. On lui donne une durée de vie très courte, de l’ordre de la minute (disons entre 3 et 10 min).
-- Le deuxième jeton, de rafraîchissement, sert à rafraîchir le premier jeton une fois celui-ci expiré. Il a une durée de vie plus longue : de l'ordre de la semaine. Il contient l’identifiant de l’utilisateur et un offset de session.
+- Le premier jeton est celui qui sert à authentifier l’utilisateur, appelons le jeton d'authentification. On lui donne une durée de vie très courte, de l’ordre de la minute (entre 3 et 10 min).
+- Le deuxième jeton, de rafraîchissement, sert à rafraîchir le premier jeton une fois celui-ci expiré. Il a une durée de vie plus longue : de l'ordre de la semaine. Il contient l’identifiant de l’utilisateur et un offset de session.  L'offset de session, c'est un simple que l'on associe à chaque utilisateur. L'offset de chaque utilisateur est stocké dans la base de données.
 
 Quand l’utilisateur se connecte à l’application avec ses identifiants, il reçoit les deux jetons.
 
-Quand il appelle une API avec son jeton d'authentification, le serveur vérifie le jeton puis lui donne l’accès à l’API si tout va bien.
+Quand il appelle une API avec son jeton d'authentification, le serveur vérifie le jeton puis lui donne l’accès à l’API si le jeton est correct.
 
-Et quand le jeton d'authentification a expiré, le client doit envoyer une demande de rafraîchissement du jeton d'authentification en spécifiant le jeton de rafraîchissement.
+Et quand le jeton d'authentification a expiré, le client doit envoyer une demande de rafraîchissement du jeton d'authentification grâce au jeton de rafraîchissement.
 
-Le serveur va vérifier le jeton de rafraîchissement, puis vérifier que l’offset de session indiqué dans le jeton est bien l'offset de session lié à l'utilisateur dans la base de données. Si c'est le cas, il lui envoie un nouveau jeton d'authentification.
-
-L'offset de session, c'est un simple nombre entier que l'on associe à chaque utilisateur.
-
-Quand il se connecte avec ses identifiants, son offset est stocké dans le jeton de rafraîchissement qui lui est émis.
-
-Et à chaque fois qu'il va demander à rafraîchir son jeton d'authentification, on va vérifier que l'offset indiqué dans son jeton de rafraîchissement est le même que celui qui lui est attribué dans la base de données. 
+Le serveur va vérifier le jeton de rafraîchissement, puis vérifier que l’offset de session indiqué dans le jeton est bien l'offset de session lié à l'utilisateur dans la base de données. Si c'est le cas, il lui envoie un nouveau jeton d'authentification, sinon, il refuse sa demande.
 
 Ainsi, pour révoquer la session d'un utilisateur, il suffira d'incrémenter son offset dans la base de données !
 
-En effet, lorsqu'il fera une nouvelle demande de rafraîchissement du jeton d'authentification (au bout de quelques minutes maximum), le serveur se rendra compte que l'offset indiqué dans le jeton de rafraîchissement ne correspond plus à l'offset qui lui est lié dans la base de données, et refusera sa demande.
+En effet, lorsque l'utilisateur revoqué fera une nouvelle demande de rafraîchissement du jeton d'authentification (au bout de quelques minutes maximum), le serveur se rendra compte que l'offset indiqué dans le jeton de rafraîchissement ne correspond plus à l'offset qui lui est attribué dans la base de données, et refusera sa demande.
 
-![Diagramme de séquence du protocole d'authentification avec un système de deux jetons JWT](images/revokation_finish.jpg)
-
-Attention cependant à une chose : il ne faut pas donner à l'offset une valeur qu'il a déjà eu auparavant, car un pirate pourrait avoir enregistré d'anciens jetons contenant d’anciens offsets.
+![Diagramme de séquence du protocole d'authentification avec un système de deux jetons JWT](images/revoke_finish.jpg)
 
 *Il faut évidemment développer une application capable de bien gérer le rafraîchissement de telle manière que l'utilisateur ne se rende pas compte quand un jeton d'authentification a expiré.*
 
@@ -439,29 +431,15 @@ Attention cependant à une chose : il ne faut pas donner à l'offset une valeur 
 
 Il est également possible que vous trouviez au détour d'un tuto une solution de révocation de jeton à base de blacklist.
 
-En fait, chaque jeton à vérifier est comparé à une liste de jetons révoqués (une blacklist donc) : s’il est présent dans cette liste, il est rejeté. Il suffit ainsi d'ajouter un jeton à la liste pour le révoquer.
+En fait, chaque jeton à vérifier est comparé à une liste de jetons révoqués (une blacklist donc) : s’il est présent dans cette liste, il est rejeté. Il suffit ainsi d'ajouter un jeton à la blacklist pour le révoquer.
 
-Cette solution n'est pas pratique car on doit stocker "l’état révoqué" ou non du jeton dans le serveur. C’est donc une solution stateful, et s’il est possible d’avoir recours à cette solution, c’est qu’il est probablement aussi possible d’avoir recours à une vrai solution de session côté serveur.
+Cette solution n'est pas pratique car on doit stocker l’état révoqué ou non du jeton dans le serveur. C’est donc une solution stateful, et s’il est possible d’avoir recours à cette solution, c’est qu’il est probablement aussi possible d’avoir recours à une vrai solution de session côté serveur.
 
-Il est par ailleurs souvent possible de bypasser cette blacklist, quand y sont enregistrés les jetons en bruts : rappelons que le header, le payload et la signature sont encodés en base64.
+Il est par ailleurs souvent possible de bypasser cette blacklist, quand y sont directement enregistrés les jetons : rappelons que le header, le payload et la signature sont encodés en base64.
 
-En effet, en base64, le caractère de padding `=` peut faire en sorte que deux chaînes de caractères en base64 différentes, donnent une fois décodées la même chaîne de caractères (pour plus d’informations sur le padding, je vous invite à lire la [RFC 4648](https://tools.ietf.org/html/rfc4648)).
+En effet, en base64, le caractère de padding `=` peut faire en sorte que deux chaînes de caractères en base64 différentes, donnent une fois décodées la même chaîne de caractères (sans que mathématiquement ce soit valide, je vous invite à lire la [RFC 4648](https://tools.ietf.org/html/rfc4648) pour plus d'infos).
 
-Prenons l’exemple de ce jeton qui est dans la blacklist :
-
-```
-ewogImFsZyIgOiAibm9uZSIsCiAidHlwIiA6ICJKV1QiCn0=.ewoJInVzZXJuYW1lIiA6ICJoNHhvciIsCgkiaXNBZG1pbiIgOiAxLAp9.NmWwHkoBnn7m03Q32gR_K2Xp-7T7T3JLTMEr8iksouA
-```
-
-Il suffirait simplement d’ajouter un padding `=` à la fin du jeton pour qu'il soit différent et donc qu'il échappe à la blacklist :
-
-<pre><code>
-ewogImFsZyIgOiAibm9uZSIsCiAidHlwIiA6ICJKV1QiCn0=.ewoJInVzZXJuYW1lIiA6ICJoNHhvciIsCgkiaXNBZG1pbiIgOiAxLAp9.NmWwHkoBnn7m03Q32gR_K2Xp-7T7T3JLTMEr8iksouA<b>=</b>
-</code></pre>
-
-Techniquement, le jeton modifié est mal encodé (question d'arithmétique).
-
-Mais dans les faits, la fonction de décodage donnera exactement le même résultat pour les deux jetons, seules leurs versions encodées seront considérées comme différentes, ce qui permet de passer outre la blacklist sans rendre le jeton invalide.
+Ça permet de bypasser la blacklist sans rendre le jeton invalide.
 
 Donc si vous voulez absolument mettre une blacklist en place, je vous conseille pour chaque jeton à révoquer de :
 
@@ -472,6 +450,6 @@ Donc si vous voulez absolument mettre une blacklist en place, je vous conseille 
 Pour vérifier un jeton, il faudra utiliser le même procédé de hachage afin de comparer son hash aux hashs de la blacklist.  
 <br>
 <br>
-Félicitations ! Vous êtes maintenant capables d'implanter JWT sur votre application en toute sécurité !
+Et voilà, vous êtes maintenant capables d'implanter JWT sur votre appli en toute sécurité !
 
 Si avez des questions, ou que vous voulez que je sécurise votre site web : contactez moi par mail à [nas2pwn@protonmail.com](mailto:nas2pwn@protonmail.com) ou par DM twitter [@nas2pwn](https://twitter.com/nas2pwn) 😀
