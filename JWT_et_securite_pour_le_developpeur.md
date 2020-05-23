@@ -173,7 +173,7 @@ Pour se faire, il suffit de changer le header comme ceci :
 
 <div class="language-json highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="p">{</span><span class="w">
 	</span><span class="nl">"alg"</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="s2"><strike>"HS256"</strike></span><span class="w"> </span><span class="s2">"none"</span><span class="p">,</span><span class="w">
- </span><span class="nl">"typ"</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="s2">"JWT"</span><span class="w">
+ 	</span><span class="nl">"typ"</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="s2">"JWT"</span><span class="w">
 </span><span class="p">}</span><span class="w">
 </span></code></pre></div></div>
 
