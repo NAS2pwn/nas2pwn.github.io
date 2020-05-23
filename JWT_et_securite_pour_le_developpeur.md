@@ -8,11 +8,11 @@ Dans cet article :
 3. [Les erreurs à éviter](#erreurs)
 
 <span id="intro"></span>
-Si vous vous intéressez à JWT, c’est sûrement que vous êtes familiers avec le développement web ou mobile, et avec la notion de session côté serveur.
+Si vous vous intéressez à JWT, vous êtes sûrement familiers avec le développement web ou mobile, et avec la notion de session côté serveur.
 
 Pour rappel, le principe de la session côté serveur est le suivant : le serveur génère un identifiant de session (le fameux `PHPSESSID` en PHP) qu’il associe à un tableau associatif (`$_SESSION[]` en PHP) et qu’il retourne au client sous forme de cookie (via l’en-tête `Set-Cookie`).
 
-En général, on se sert de cette technologie pour mémoriser les infos de l’utilisateur au cours de sa navigation, et qu’il reste authentifié :
+En général, on se sert de cette technologie pour mémoriser les infos de l’utilisateur au cours de sa navigation, et pour qu’il reste authentifié :
 
 ![Diagramme de séquence du protocole d'authentification avec une session côté serveur](images/session_finish.jpg)
 
@@ -26,7 +26,7 @@ Mais cette technique a des limites. Elle ne fonctionne que si tous les endpoints
 
 Or, il existe pléthore de cas où cette condition n’est pas remplie, pour n’en citer que deux :
 
-- Le cas des applications scalables nécessitant une répartition de la charge entre plusieurs serveurs, grâce un load balancer qui route les requêtes vers un serveur ou un autre selon leurs disponibilités.<br/><br/>Le problème ici, c’est qu’on peut très bien avoir notre session stockée sur l’un des serveurs au début de notre navigation, puis finir par être routé vers un autre serveur qui n’a pas connaissance de notre session au cours de notre navigation, et donc perdre notre session.<br/><br/>![Diagramme de séquence du protocole d'authentification avec une session côté serveur quand ça passe par un load balancer](images/load_balancing_finish.jpg)<br/><br/>*Note : il est possible d’implémenter une session côté serveur dans cette configuration en stockant les sessions dans la base de données, mais il est possible qu'elle finisse pas être surchargée, ce qui réduit l'intérêt du load balancer à néant.*
+- Le cas des applications scalables nécessitant une répartition de la charge entre plusieurs serveurs, grâce un load balancer qui route les requêtes vers un serveur ou un autre selon leurs disponibilités.<br/><br/>Le problème ici, c’est qu’on peut très bien avoir notre session stockée sur l’un des serveurs au début de notre navigation, puis finir par être routé vers un autre serveur qui n’a pas connaissance de notre session au cours de notre navigation, et donc perdre notre session.<br/><br/>![Diagramme de séquence du protocole d'authentification avec une session côté serveur quand ça passe par un load balancer](images/load-balancing_finish.jpg)<br/><br/>*Note : il est possible d’implémenter une session côté serveur dans cette configuration en stockant les sessions dans la base de données, mais il est possible qu'elle finisse pas être surchargée, ce qui réduit l'intérêt du load balancer à néant.*
 
 - Le cas où l’utilisateur doit pouvoir se connecter simultanément à plusieurs API indépendantes.<br/><br/>On peut imaginer un site de réservation de voyage où l’API du service client et l’API de réservation ne sont pas codées dans le même langage et/ou ne tournent pas sur le même serveur.<br/><br/>On veut pourtant que les deux API partagent la même session pour avoir accès aux informations de l’utilisateur, sans qu'il n'ait à se reconnecter quand il navigue d'un service à un autre, en sachant que les API ne peuvent pas partager de session côté serveur.<br/><br/>Cette situation est courante, notamment dans les environnements agiles où l’aspect opérationnel et les délais courts priment sur les exigences techniques et les négociations contractuelles, ce qui donne des APIs très hétérogènes.<br/><br/>*Note : il existe des solutions un peu borderline pour partager une session côté serveur entre APIs de technologies différentes, typiquement PHP et Node.js, mais rien n’atteste de leur stabilité ni de leur sécurité.*
 
