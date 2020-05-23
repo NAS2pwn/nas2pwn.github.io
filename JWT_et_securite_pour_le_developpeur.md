@@ -295,7 +295,7 @@ Et voilà le payload
 }
 ```
 
-Un pirate peut modifier le KID de son jeton pour pointer vers un fichier du serveur auquel il a accès, par exemple le fichier `robots.txt` de l'appli :
+Un pirate peut modifier le KID de son jeton pour pointer vers un fichier du serveur auquel il a accès, par exemple le fichier `robots.txt` :
 
 Header
 
