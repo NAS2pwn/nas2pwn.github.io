@@ -388,7 +388,7 @@ Rien ne sert de prendre des milliers de précautions si la clé de chiffrement n
 Il ne faut surtout pas que l'utilisateur puisse accéder à la clé :
 - Elle ne doit donc évidemment pas être accessible à l'utilisateur via le serveur web
 
-- Elle doit avoir les privilèges les plus restreints possibles au niveau de l'OS
+- Les droits sur la clé doivent être les plus restreints possibles au niveau de l'OS
 
 - Il faut faire attention aux autres vecteurs d'attaques qui pourrait permettre à un attaquant de voler la clé sur le serveur : les failles LFI, mais aussi XXE si vous parsez du XML, SSRF si vous faites des requêtes depuis le back-end, XSS si vous devez générer des PDF sur mesure par exemple, etc.<br><br>Vous trouverez beaucoup de ressources sur Internet en googlant ces noms barbares, mais il est parfois nécessaire de faire appel à un professionnel pour mener un audit complet de l'application à sécuriser.
 
