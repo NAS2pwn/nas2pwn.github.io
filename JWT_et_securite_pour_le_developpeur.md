@@ -1,6 +1,6 @@
 # JWT et sécurité pour le développeur
 
-*Disclaimer : cet article est une vue d’ensemble destinée aux développeurs, j'ai fais des approximations sur pas mal de sujets ; je m’excuse d’avance si ça vous dérange, et je suis ouvert à tout retour par mail [nas2pwn@protonmail.com](mailto:nas2pwn@protonmail.com) ou sur twitter [@nas2pwn](https://twitter.com/nas2pwn) 😀*
+*Disclaimer : cet article est une vue d’ensemble destinée aux développeurs, j'ai fais des approximations sur pas mal de sujets ; je m’excuse d’avance si ça vous dérange, et je suis ouvert à tout retour par mail à [nas2pwn@protonmail.com](mailto:nas2pwn@protonmail.com) ou sur twitter [@nas2pwn](https://twitter.com/nas2pwn) 😀*
 
 Dans cet article :
 1. [Intro](#intro)
@@ -8,33 +8,36 @@ Dans cet article :
 3. [Les erreurs à éviter](#erreurs)
 
 <span id="intro"></span>
-Si vous vous intéressez à JWT, c’est que vous êtes familiers avec le développement web ou mobile, et avec la notion de session côté serveur. Il est même possible que de doux souvenirs de `session_start()` et de `var_dump()` vous viennent en tête à la lecture de l’article !
+Si vous vous intéressez à JWT, c’est sûrement que vous êtes familiers avec le développement web ou mobile, et avec la notion de session côté serveur.
 
-Pour rappel, le principe de la session côté serveur est le suivant : le serveur génère un identifiant (le fameux `PHPSESSID` en PHP) qu’il associe à un tableau associatif (`$_SESSION[]` en PHP) et qu’il retourne au client sous forme de cookie (via l’en-tête `Set-Cookie`).
+Pour rappel, le principe de la session côté serveur est le suivant : le serveur génère un identifiant de session (le fameux `PHPSESSID` en PHP) qu’il associe à un tableau associatif (`$_SESSION[]` en PHP) et qu’il retourne au client sous forme de cookie (via l’en-tête `Set-Cookie`).
+
+En général, on se sert de cette technologie pour mémoriser les infos de l'utilisateur au cours de sa navigation, et qu'il reste authentifié :
 
 ![Diagramme de séquence du protocole d'authentification avec une session côté serveur](images/session_finish.jpg)
 
-Cette solution permet de ne pas avoir à indiquer ses identifiants à chaque requête.
+Cette solution permet à l'utilisateur de ne pas avoir à indiquer ses identifiants à chaque requête :
 
 ![Diagramme de séquence du protocole d'authentification sans session](images/sans_session_finish.jpg)
 
-Ce qui rend cette technique presque inviolable, c’est que la seule information contrôlée par le client (l’ID de session) est générée aléatoirement, et n’a pas valeur d’information pour l’application : ce qui exclut de fait toute altération directe de la session ou attaque par injection de code.
+Ce qui rend cette technique presque inviolable d'un point de vue sécurité, c’est que la seule information contrôlée par le client (l’ID de session) n’a pas valeur d’information pour l’application : ce qui exclut de fait toute altération directe de la session ou attaque par injection de code.
 
 Mais cette technique a des limites. Elle ne fonctionne que si tous les endpoints de l’application tournent sur le même serveur (en réalité le même service), et utilisent la même technologie.
 
 Or, il existe pléthore de cas où cette condition n’est pas remplie, pour n’en citer que deux :
 
-- Le cas des applications scalables nécessitant une répartition de la charge entre plusieurs serveurs, grâce un load balancer qui route les requêtes vers un serveur ou un autre selon leurs disponibilités.<br/><br/>Le problème ici, c’est qu’on peut très bien avoir notre session stockée sur l’un des serveurs au début de notre navigation, puis finir par être routé vers un autre serveur qui n’a pas connaissance de notre session au cours de notre navigation, et donc perdre notre session.<br/><br/>![Diagramme de séquence du protocole d'authentification avec une session côté serveur quand ça passe par un load balancer](images/load_balancing_finish.jpg)<br/><br/>*Note : il est possible d’implémenter une session côté serveur dans cette configuration en stockant les sessions dans une base de données commune aux serveurs web, mais il est possible que cette base de données finissent pas être surchargée, ce qui réduit l'intérêt du load balancer à néant.*
+- Le cas des applications scalables nécessitant une répartition de la charge entre plusieurs serveurs, grâce un load balancer qui route les requêtes vers un serveur ou un autre selon leurs disponibilités.<br/><br/>Le problème ici, c’est qu’on peut très bien avoir notre session stockée sur l’un des serveurs au début de notre navigation, puis finir par être routé vers un autre serveur qui n’a pas connaissance de notre session au cours de notre navigation, et donc perdre notre session.<br/><br/>![Diagramme de séquence du protocole d'authentification avec une session côté serveur quand ça passe par un load balancer](images/load_balancing_finish.jpg)<br/><br/>*Note : il est possible d’implémenter une session côté serveur dans cette configuration en stockant les sessions dans la base de données, mais il est possible qu'elle finisse pas être surchargée, ce qui réduit l'intérêt du load balancer à néant.*
 
-- Le cas où l’utilisateur doit pouvoir se connecter simultanément à plusieurs API indépendantes.<br/><br/>On peut imaginer un site de réservation de voyage où l’API du service client et l’API de réservation ne sont pas codées dans le même langage et/ou ne tournent pas sur le même serveur.<br/><br/>On veut pourtant que les deux API partagent la même session pour avoir accès aux informations de l’utilisateur, sans qu'il n'ait à se reconnecter à chaque page, en sachant que les API ne peuvent pas partager de session côté serveur.<br/><br/>Cette situation est courante, notamment dans les environnements agiles où l’aspect opérationnel et les délais courts priment sur les exigences techniques et les négociations contractuelles.<br/><br/>*Note : il existe quand même des solutions un peu borderline pour partager une session côté serveur entre API de technologies différentes sur un même serveur, typiquement PHP et Node.js, mais rien n’atteste de leur stabilité ni de leur sécurité.*
+- Le cas où l’utilisateur doit pouvoir se connecter simultanément à plusieurs API indépendantes.<br/><br/>On peut imaginer un site de réservation de voyage où l’API du service client et l’API de réservation ne sont pas codées dans le même langage et/ou ne tournent pas sur le même serveur.<br/><br/>On veut pourtant que les deux API partagent la même session pour avoir accès aux informations de l’utilisateur, sans qu'il n'ait à se reconnecter quand il navigue d'un service à un autre, en sachant que les API ne peuvent pas partager de session côté serveur.<br/><br/>Cette situation est courante, notamment dans les environnements agiles où l’aspect opérationnel et les délais courts priment sur les exigences techniques et les négociations contractuelles, ce qui donne des APIs très hétérogènes.<br/><br/>*Note : il existe des solutions un peu borderline pour partager une session côté serveur entre APIs de technologies différentes, typiquement PHP et Node.js, mais rien n’atteste de leur stabilité ni de leur sécurité.*
 
-Les puristes du HTTP déplorent également l’aspect stateful ("avec état", lorsque l’état du client est enregistré sur le serveur entre deux requêtes) du système de session côté serveur, qui entre en contradiction avec la nature stateless ("sans état") de HTTP (tel que défini dans la [RFC 2616](https://tools.ietf.org/html/rfc2616)).
+Les puristes du HTTP déplorent également l’aspect stateful ("avec état", lorsque l’état du client est enregistré sur le serveur) du système de session côté serveur, qui entre en contradiction avec la nature stateless ("sans état") de HTTP (tel que défini dans la [RFC 2616](https://tools.ietf.org/html/rfc2616)).
 
 L’architecture REST par exemple, est puriste sur les bords, et n’autorise pas le recours à un système de session côté serveur. Il faut la comprendre, elle a été conçue par Roy Fielding, qui a également développé le protocole HTTP/1.1 !
 
-Alors, en quoi JWT peut nous aider ?
+Alors, en quoi JWT peut nous aider ?  
 
-## JWT c’est quoi ? <span id="jwt-ckois"></span>
+<span id="jwt-ckois"></span>
+## JWT c’est quoi ? 
 
 JWT, abréviation de JSON Web Token, est une méthode sécurisée d’échange d’information décrite par la [RFC 7519](https://tools.ietf.org/html/rfc7519). L’information est échangée dans un jeton qui est signé pour assurer son intégrité.
 
@@ -55,7 +58,7 @@ Le header identifie la méthode de chiffrement utilisée pour générer la signa
 }
 ```
 
-Ici la fonction de chiffrement utilisée est HMAC-SHA256, qui est couramment utilisée.
+Ici la fonction de chiffrement utilisée est HMAC-SHA256, c'est la plus courante.
 
 La charge utile contient l’information que l’on veut stocker dans le jeton. On peut y écrire librement dans des champs personnalisés ("claims"), mais il existe des champs standards ("registered claims") à respecter, qui sont décrits dans la [RFC 7519](https://tools.ietf.org/html/rfc7519).
 
@@ -68,7 +71,7 @@ La charge utile contient l’information que l’on veut stocker dans le jeton. 
 }
 ```
 
-Ici, on stocke le nom de l’utilisateur dans le champ `username`, les privilèges administrateur ou non de l'utilisateur dans le champ `isAdmin`, le timecode d’émission du jeton dans le champ `iat`, et celui d’expiration du jeton dans le champ `exp`.
+Ici, on stocke le nom de l’utilisateur dans le champ `username`, les privilèges de l'utilisateur dans le champ `isAdmin`, le timecode d’émission du jeton dans le champ `iat`, et celui d’expiration du jeton dans le champ `exp`.
 
 Les champs `iat` et `exp` sont des champs standards signifiant respectivement "Issued At Time" et "Expiration Time".
 
@@ -90,7 +93,7 @@ Le jeton final est la concaténation des trois parties ci-dessus encodées en ba
 
 ### Gérer l'authentification avec JWT
 
-*En réalité, JWT est un standard qui concerne exclusivement le jeton. Je vais ici décrire un protocole d'authentification qui utilise des jetons JWT et que j'ai tendance à également appeler JWT par métonymie.*
+*En réalité, JWT est le standard qui concerne exclusivement le jeton. Je vais ici décrire un protocole d'authentification qui utilise les jetons JWT et que j'ai tendance à également appeler JWT par métonymie.*
 
 Le principe de fonctionnement de JWT diffère de celui de la session côté serveur par le fait que c’est le client qui stocke l'information de la session : on peut en ce sens parler de session côté client.
 
@@ -102,11 +105,11 @@ Il suffit ensuite à l’utilisateur d’indiquer ce jeton à chaque fois qu’i
 
 Notez qu'ici le jeton JWT est envoyé via l'en-tête Authorization de la requête HTTP, que notre navigateur web n’est pas capable de remplir automatiquement.
 
-En fait, cette manière de procéder est adaptée aux applications organisées par API, et où le front-end est capable de faire ses propres requêtes asynchrones (applications web javascript type React par exemple, ou applis mobiles).
+En fait, cette manière de procéder est adaptée aux applications organisées par API, où le front-end est capable de faire ses propres requêtes asynchrones. Ça concerne les applications web javascript (type React) par exemple, ou les applis mobiles.
 
-Mais il est également possible de stocker le jeton JWT dans un cookie, ce qui se rapproche plus de l’expérience que l’on a avec le PHPSESSID par exemple.
+Mais il est également possible de stocker le jeton JWT dans un cookie, ce qui se rapproche plus de l’expérience que l’on a avec le PHPSESSID.
 
-*Je vous conseille de lire [cet excellent article](https://www.vaadata.com/blog/fr/jetons-jwt-et-securite-principes-et-cas-dutilisation/) pour avoir plus d’informations sur le sujet.*
+Je vous conseille de lire [cet excellent article](https://www.vaadata.com/blog/fr/jetons-jwt-et-securite-principes-et-cas-dutilisation/) pour avoir plus d’informations sur le sujet.
 
 ## Les erreurs à éviter <span id="erreurs"></span>
 
@@ -123,6 +126,7 @@ On est donc obligés de lui faire confiance, alors qu’on lui donne beaucoup de
 Mais avant de commencer, définissons ce que l’on risque en cas d’attaque réussie du jeton JWT :
 
 - **Usurpation d’identité :** si le jeton sert à identifier l’utilisateur et qu’un utilisateur malveillant parvient à en contrôler le contenu, il peut potentiellement se connecter au compte qu’il veut, et/ou obtenir des privilèges sur l’application.  
+
 - **Vol de marchandise :** il arrive que le panier de l’utilisateur soit stocké dans un jeton JWT. Un jeton mal configuré pourrait alors, si le back-end fait pleinement confiance à ce jeton, mener à des vols de marchandise.  
 
 - **Vol des données des utilisateurs :** il existe des cas où l’attaque d’un jeton JWT mène à des attaques par injections SQL (ou NoSQL, XPath, voire LDAP…), donc potentiellement au vol de la base de données (ou de l’annuaire) derrière l’application.  
@@ -149,11 +153,11 @@ On peut utiliser deux méthodes de chiffrement pour signer un jeton JWT :
 - **HMAC :** qui est symétrique, on utilise la même clé pour signer un jeton et pour en vérifier la signature, cette clé doit évidemment rester privée.
 - **RSA :** qui est asymétrique, on signe avec la clé privée, et on vérifie la signature avec la clé publique.
 
-Généralement, l’utilisation de HMAC est suffisant, et plus pratique : puisque souvent le même serveur s'occupe à la fois de l'émission et de la vérification du jeton, et HMAC est (beaucoup) plus rapide que RSA.
+Généralement, l’utilisation de HMAC est suffisant, et plus pratique : puisque souvent le même serveur s'occupe à la fois de l'émission et de la vérification du jeton, et que HMAC est (beaucoup) plus rapide que RSA.
 
 Mais l’utilisation de RSA comme méthode de chiffrement présente pas mal d’avantages.
 
-Elle permet notamment de mieux délimiter les rôles de chaque API : l'API émettrice de jetons doit être la seul à avoir accès à la clé privée, tandis que les API qui vérifient les jetons ne doivent eux avoir accès qu’à la clé publique.
+Elle permet notamment de mieux délimiter les rôles de chaque API : l'API émettrice de jetons doit être la seul à avoir accès à la clé privée, tandis que les API qui vérifient les jetons ne doivent avoir eux accès qu’à la clé publique.
 
 Ainsi, si un pirate réussit à prendre le contrôle d’une API qui ne fait que vérifier les jetons et qui utilise RSA, il ne pourra voler que la clé publique et ne pourra donc pas signer ses propres jetons.
 
@@ -167,21 +171,21 @@ On a vu qu’on peut spécifier l’algorithme HMAC ou RSA, mais on peut aussi s
 
 Pour se faire, il suffit de changer le header comme ceci :
 
-<pre><code class="language-json">
+```json
 {
- "<span class="hljs-attribute">alg</span>" : <span class="hljs-value"><span class="hljs-string"><strike>"HS256"</strike> "none"</span></span>,
- "<span class="hljs-attribute">typ</span>" : <span class="hljs-value"><span class="hljs-string">"JWT"</span></span>
+ "alg" : "HS256" "none",
+ "typ" : "JWT"
 }
-</code></pre>
+```
 
 De modifier le payload comme on le souhaite :
 
-<pre><code class="language-json">
+```json
 {
-	"<span class="hljs-attribute">username</span>" : <span class="hljs-value"><span class="hljs-string">"h4xor"</span></span>,
-	"<span class="hljs-attribute">isAdmin</span>" : <span class="hljs-value"><span class="hljs-number"><strike>0</strike> 1</span></span>,
+	"username" : "h4xor",
+	"isAdmin" : 0 1,
 }
-</code></pre>
+```
 
 Puis de retirer la signature du jeton :
 
@@ -195,9 +199,9 @@ Heureusement, la plupart des librairies de gestion de JWT rejettent par défaut 
 
 ##### Cas 2 :
 
-Maintenant, un cas plus complexe. Imaginons une application gérant la signature de ses jetons JWT avec RSA.
+Maintenant, un cas plus complexe. Imaginons une application gérant la signature de ses jetons JWT avec RSA. Un pirate s'est débrouillé pour voler la clé publique.
 
-On ne peut à priori pas signer de jeton avec la clé publique uniquement, sauf si on remplace RSA par HMAC dans `alg` !
+Il ne peut à priori pas signer de jeton avec la clé publique uniquement, sauf si il remplace RSA par HMAC dans `alg` !
 
 ```json
 {
@@ -210,13 +214,13 @@ En effet, le serveur va penser que la clé publique utilisée pour vérifier le 
 
 L'attaquant pourra ainsi signer ses propres jetons avec la clé publique !
 
-Pour corriger cette faille, il faut à chaque vérification de jeton s’assurer que l’algorithme spécifié dans le champ `alg` du jeton soit effectivement l’algorithme attendu.
+Pour corriger cette faille, il faut à chaque vérification de jeton s’assurer que l’algorithme spécifié dans le champ `alg` soit effectivement l’algorithme attendu.
 
 Il est également souhaitable de ne pas rendre public la clé publique si l’utilisateur lambda n’en a pas besoin : car moins un attaquant sait de choses, plus la probabilité d’une attaque réussie est faible.
 
 Ceux qui ont vu le bureau des légendes connaissent déjà ce principe, c’est le fameux "besoin d’en connaître" 😉.
 
-*Évitez donc d'utiliser la même paire de clés pour votre certificat SSL/TLS que pour signer vos jetons JWT par exemple !*
+*Évitez donc d'utiliser la même paire de clés pour votre certificat SSL/TLS que pour vos jetons JWT !*
 
 ### Faire confiance au payload
 
@@ -230,7 +234,7 @@ Quand vous lisez un jeton JWT, vous obtenez des variables qu’il faut filtrer c
 
 Si l’utilisateur ne peut en principe pas modifier le contenu du jeton, il peut tout à fait le lire : il ne faut donc pas y stocker d’informations sensibles en clair, et si possible ne pas y stocker d’informations sensibles du tout !
 
-*Si vous devez absolument avoir une info sensible sur le jeton, mais uniquement pour la comparer à une autre info (comme un mot de passe à comparer à un autre mot de passe) : optez pour le hachage plutôt que pour une méthode chiffrement*
+*Si vous devez absolument stocker une info sensible sur le jeton, mais uniquement pour la comparer à une autre info (comme un mot de passe à comparer à un autre mot de passe) : optez pour le hachage plutôt que le chiffrement. Car ce qui est chiffré est déchiffrable, mais pas ce qui est haché.*
 
 ### Utiliser un secret trop simple
 
@@ -238,7 +242,7 @@ Quand on a un jeton JWT, on a accès à son contenu en clair ainsi qu’à sa si
 
 Il va alors falloir utiliser une clé béton !
 
-Si on utilise RSA : il suffit de générer une paire de clés de longueur suffisante avec openssl ou ssh-keygen pour se protéger, et si on utilise HMAC : on ne parle pas réellement de clé mais de "secret", une sorte de mot de passe qui sert de clé de chiffrement.
+Si on utilise RSA : il suffit de générer une paire de clés de longueur suffisante avec `openssl` ou `ssh-keygen` (sans passphrase) pour se protéger, et si on utilise HMAC : on ne parle pas réellement de clé mais de "secret", une sorte de mot de passe qui sert de clé de chiffrement.
 
 Comme pour un mot de passe, il faut éviter d’utiliser des mots courants pour prévenir les attaques par dictionnaire. Substituer des lettres par des chiffres n'est pas très efficace, combiner plusieurs mots non plus (dans une certaine mesure évidemment).
 
@@ -250,9 +254,11 @@ Puisque nous n’avons pas à nous souvenir du secret par cœur, qui sera de tou
 
 ### Ne pas vérifier le KID
 
-Il est possible quand on a plusieurs clés de spécifier la clé à utiliser pour vérifier la signature d'un jeton dans son header, grâce au champ standard `kid`, qui signifie "Key ID".
+Il est possible de spécifier la clé à utiliser pour vérifier la signature d'un jeton dans son header, grâce au champ standard `kid`, qui signifie "Key ID".
 
-Il n'y a pas de restrictions quant à la forme que le KID peut prendre : ça peut être l'ID d'une clé sous forme numérique ou bien le chemin vers un fichier contenant la clé par exemple.
+C'est une fonctionnalité utile quand on utilise plusieurs clés de chiffrement pour préciser quelle clé il faut utiliser pour vérifier chaque jeton.
+
+Il n'y a pas de restrictions quant à la forme que le KID peut prendre : ça peut être l'ID d'une clé sous forme numérique par exemple, ou bien le chemin vers un fichier contenant la clé...
 
 Petit exemple :
 
@@ -266,14 +272,14 @@ Petit exemple :
 
 Ici, le serveur va utiliser la clé n°2 pour vérifier la signature du jeton : ce que le développeur a défini comme étant la clé n°2 en fait.
 
-Comme pour `alg`, un utilisateur malveillant peut modifier le KID de son jeton pour tenter de duper le serveur.
+Comme avec le champ `alg`, un utilisateur malveillant peut modifier le KID de son jeton pour tenter de duper le serveur.
 On va voir deux exemples d'attaque du KID.
 
 ##### Cas 1:
 
 Imaginons que le KID serve à indiquer le chemin vers le fichier contenant la clé de chiffrement :
 
-Header
+Voici le header (le KID est dans le champ `kid`)
 
 ```json
 {
@@ -283,7 +289,7 @@ Header
 }
 ```
 
-Payload
+Et voilà le payload
 
 ```json
 {
@@ -311,24 +317,24 @@ Payload
 </span><span class="p">}</span><span class="w">
 </span></code></pre></div></div>
 
-Il lui suffit ensuite de signer son faux jeton avec le contenu du fichier `robots.txt`, puis de le soumettre au serveur !
+Il lui suffit ensuite de signer son faux jeton avec le contenu du fichier `robots.txt`, puis de le soumettre au serveur : le voilà administrateur du site !
 
-Pour se protéger contre cette attaque : il faut filtrer le KID des attaque de type Directory Traversal, en lui retirant les `/` et les `..` par exemple.
+Pour se protéger contre cette attaque : il faut filtrer le KID contre les Directory Traversal, en lui retirant les `/` et les `..` par exemple.
 
 ##### Cas 2 :
 
 Imaginons maintenant que les clés soient stockées dans la table `secrets` de la base de données de l'application.
 
-Le KID sert alors à indiquer l'ID de la clé à utiliser pour vérifier la signature dans la table secrets.
+Le KID sert alors à indiquer l'ID de la clé à utiliser dans la table `secrets`.
 
 L'application va devoir faire un appel à la base de données pour récupérer le secret à chaque fois qu'il vérifie un jeton, en SQL :
 
 <div class="language-sql highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">SELECT</span> <span class="n">secretPlain</span> <span class="k">FROM</span> <span class="n">secrets</span> <span class="k">where</span> <span class="n">id</span><span class="o">=</span><span class="n">$kid</span> <span class="k">limit</span> <span class="mi">0</span><span class="p">,</span><span class="mi">1</span><span class="p">;</span>
 </code></pre></div></div>
 
-Si le KID n'est pas filtré contre les injections SQL, l'attaquant peut alors insérer sa propre clé ou mener des attaques SQL à l'aveugle pour voler des informations !
+Si le KID n'est pas filtré contre les injections SQL, l'attaquant peut alors insérer sa propre clé ou mener une attaque SQL à l'aveugle pour voler des informations (un secret ou des identifiants par exemple) !
 
-Ici il insère son propre secret dans la base de données, la clé d'ID 72 de la table sera `je tai hacke mdr` :
+Ici il insère son propre secret dans la base de données, la clé d'ID `72` dans la table sera `je tai hacke mdr` :
 
 <div class="language-json highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="p">{</span><span class="w">
 	</span><span class="nl">"alg"</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="s2">"HS256"</span><span class="p">,</span><span class="w">
@@ -337,7 +343,7 @@ Ici il insère son propre secret dans la base de données, la clé d'ID 72 de la
 </span><span class="p">}</span><span class="w">
 </span></code></pre></div></div>
 
-Il lui suffit ensuite de fabriquer son jeton et de le signer avec le secret qu'il a inséré, en indiquant bien le KID 72 dans le header :
+Il lui suffit ensuite de fabriquer son faux jeton, de le signer avec le secret qu'il a inséré, puis de le soumettre au serveur : en indiquant bien le KID 72 dans le header.
 
 ```json
 {
@@ -347,11 +353,11 @@ Il lui suffit ensuite de fabriquer son jeton et de le signer avec le secret qu'i
 }
 ```
 
-*S'il est nécessaire de filtrer le KID contre les injections, il faut aussi bien définir les rôles dans la base de données pour limiter la portée d'une attaque réussie !*
+*S'il est nécessaire de filtrer le KID contre les injections, il faut aussi correctement définir les rôles dans la base de données pour limiter la portée d'une attaque réussie !*
 
 ##### Cas 3 :
 
-Il est possible que le KID soit passé en paramètre d'une commande shell.
+Il est également possible que le KID soit passé en paramètre d'une commande shell.
 
 Petit exemple en PHP :
 
@@ -370,7 +376,7 @@ Ainsi, la lecture d'un jeton avec ce header
 </span><span class="p">}</span><span class="w">
 </span></code></pre></div></div>
 
-génèrera un reverse shell vers la machine du pirate, qu'il pourra utiliser pour exécuter les commandes qu'il souhaite sur notre serveur web.
+génèrera un reverse shell vers la machine du pirate, qu'il pourra utiliser pour exécuter les commandes qu'il souhaite sur le serveur web.
 
 Pour éviter cette situation, le mieux est de ne pas du tout passer par une commande shell.
 
@@ -384,9 +390,12 @@ Rien ne sert de prendre des milliers de précautions si la clé de chiffrement n
 
 Il ne faut surtout pas que l'utilisateur puisse accéder à la clé :
 - Elle ne doit donc évidemment pas être accessible à l'utilisateur via le serveur web
+
 - Elle doit avoir les privilèges les plus restreints possibles au niveau de l'OS
+
 - Il faut faire attention aux autres vecteurs d'attaques qui pourrait permettre à un attaquant de voler la clé sur le serveur : les failles LFI, mais aussi XXE si vous parsez du XML, SSRF si vous faites des requêtes depuis le back-end, XSS si vous devez générer des PDF sur mesure par exemple, etc.<br><br>Vous trouverez beaucoup de ressources sur Internet en googlant ces noms barbares, mais il est parfois nécessaire de faire appel à un professionnel pour mener un audit complet de l'application à sécuriser.
-- Il faut faire attention aux failles OSINT ou relatives au social engineering.<br><br>Il est possible d'avoir une application incroyablement bien sécurisé, mais d'avoir malencontreusement oublié la clé de chiffrement dans le github de l'application, dans le slack de l'équipe, ou dans le trello du projet.<br><br>Autant d'endroits où pourraient s'incruster de petits malins en quête de sensation fortes, ou de véritables pirates qui en ont après votre application.<br><br>Il suffit parfois d'une recherche google bien placée, ou d'un peu de tchatche et d'astuce pour pénétrer ce genre d'endroits.<br><br>Dans [cet article](https://medium.com/intigriti/how-i-hacked-hundreds-of-companies-through-their-helpdesk-b7680ddc2d4c), vous trouverez un exemple d'intrusion dans un canal slack, via l'e-mail de support de la boîte.<br><br>*Il arrive que des développeurs oublient de retirer le dossier .git en production, ce qui permet à un potentiel pirate de reconstituer tout le code source de l'appli, et éventuellement la clé de chiffrement des jetons ou le mot de passe de la base de données !*
+
+- Il faut faire attention aux failles OSINT ou relatives au social engineering.<br><br>Il est possible d'avoir une application incroyablement bien sécurisé, mais d'avoir malencontreusement oublié la clé de chiffrement dans le github de l'application, dans le slack de l'équipe, ou dans le trello du projet.<br><br>Autant d'endroits où pourraient s'incruster de petits malins en quête de sensation fortes, ou de véritables pirates qui en ont après votre application.<br><br>Il suffit parfois d'une recherche google bien placée, ou d'un peu de tchatche et d'astuce pour pénétrer ce genre d'endroits.<br><br>Dans [cet article](https://medium.com/intigriti/how-i-hacked-hundreds-of-companies-through-their-helpdesk-b7680ddc2d4c), vous trouverez un exemple d'intrusion dans un canal slack, via l'e-mail de support de la boîte.<br><br>*Il arrive aussi que des développeurs oublient de retirer le dossier .git de la production : ce qui permet à un potentiel pirate de reconstituer tout le code source de l'appli, et éventuellement la clé de chiffrement des jetons ou le mot de passe de la base de données !*
 
 ### Ne pas vérifier la signature
 
@@ -409,7 +418,8 @@ Heureusement, il existe des solutions à ce problème 😀
 On peut employer un mécanisme à deux jetons :
 
 - Le premier jeton est celui qui sert à authentifier l’utilisateur, appelons le jeton d'authentification. On lui donne une durée de vie très courte, de l’ordre de la minute (entre 3 et 10 min).
-- Le deuxième jeton, de rafraîchissement, sert à rafraîchir le premier jeton une fois celui-ci expiré. Il a une durée de vie plus longue : de l'ordre de la semaine. Il contient l’identifiant de l’utilisateur et un offset de session.  L'offset de session, c'est un simple que l'on associe à chaque utilisateur. L'offset de chaque utilisateur est stocké dans la base de données.
+
+- Le deuxième jeton, de rafraîchissement, sert à rafraîchir le premier jeton une fois celui-ci expiré. Il a une durée de vie plus longue : de l'ordre de la semaine. Il contient l’identifiant de l’utilisateur et un offset de session.  L'offset de session, c'est un simple entier que l'on associe à chaque utilisateur. L'offset de chaque utilisateur est stocké dans la base de données.
 
 Quand l’utilisateur se connecte à l’application avec ses identifiants, il reçoit les deux jetons.
 
@@ -424,8 +434,6 @@ Ainsi, pour révoquer la session d'un utilisateur, il suffira d'incrémenter son
 En effet, lorsque l'utilisateur revoqué fera une nouvelle demande de rafraîchissement du jeton d'authentification (au bout de quelques minutes maximum), le serveur se rendra compte que l'offset indiqué dans le jeton de rafraîchissement ne correspond plus à l'offset qui lui est attribué dans la base de données, et refusera sa demande.
 
 ![Diagramme de séquence du protocole d'authentification avec un système de deux jetons JWT](images/revoke_finish.jpg)
-
-*Il faut évidemment développer une application capable de bien gérer le rafraîchissement de telle manière que l'utilisateur ne se rende pas compte quand un jeton d'authentification a expiré.*
 
 ##### Solution questionnable
 
@@ -450,6 +458,6 @@ Donc si vous voulez absolument mettre une blacklist en place, je vous conseille 
 Pour vérifier un jeton, il faudra utiliser le même procédé de hachage afin de comparer son hash aux hashs de la blacklist.  
 <br>
 <br>
-Et voilà, vous êtes maintenant capables d'implanter JWT sur votre appli en toute sécurité !
+Et voilà, vous êtes maintenant capables d'implémenter JWT sur votre appli en toute sécurité !
 
 Si avez des questions, ou que vous voulez que je sécurise votre site web : contactez moi par mail à [nas2pwn@protonmail.com](mailto:nas2pwn@protonmail.com) ou par DM twitter [@nas2pwn](https://twitter.com/nas2pwn) 😀
