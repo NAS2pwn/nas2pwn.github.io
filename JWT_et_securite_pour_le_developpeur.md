@@ -26,9 +26,9 @@ Mais cette technique a des limites. Elle ne fonctionne que si tous les endpoints
 
 Or, il existe pléthore de cas où cette condition n’est pas remplie, pour n’en citer que deux :
 
-- Le cas des applications scalables nécessitant une répartition de la charge entre plusieurs serveurs, grâce un load balancer qui route les requêtes vers un serveur ou un autre selon leurs disponibilités.<br/><br/>Le problème ici, c’est qu’on peut très bien avoir notre session stockée sur l’un des serveurs au début de notre navigation, puis finir par être routé vers un autre serveur qui n’a pas connaissance de notre session au cours de notre navigation, et donc perdre notre session.<br/><br/>![Diagramme de séquence du protocole d'authentification avec une session côté serveur quand ça passe par un load balancer](images/load-balancing_finish.jpg)<br/><br/>*Note : il est possible d’implémenter une session côté serveur dans cette configuration en stockant les sessions dans la base de données, mais il est possible qu'elle finisse pas être surchargée, ce qui réduit l'intérêt du load balancer à néant.*
+- Le cas des applications nécessitant une répartition de la charge entre plusieurs serveurs, grâce un load balancer qui route les requêtes vers un serveur ou un autre selon leurs disponibilités.<br/><br/>Le problème ici, c’est qu’on peut très bien avoir notre session stockée sur l’un des serveurs au début de notre navigation, puis finir par être routé vers un autre serveur qui n’a pas connaissance de notre session au cours de notre navigation, et donc perdre notre session.<br/><br/>![Diagramme de séquence du protocole d'authentification avec une session côté serveur quand ça passe par un load balancer](images/load-balancing_finish.jpg)<br/><br/>*Note : il est possible d’implémenter une session côté serveur dans cette configuration en stockant les sessions dans la base de données, mais il est possible qu'elle finisse pas être surchargée, ce qui réduit l'intérêt du load balancer à néant.*
 
-- Le cas où l’utilisateur doit pouvoir se connecter simultanément à plusieurs API indépendantes.<br/><br/>On peut imaginer un site de réservation de voyage où l’API du service client et l’API de réservation ne sont pas codées dans le même langage et/ou ne tournent pas sur le même serveur.<br/><br/>On veut pourtant que les deux API partagent la même session pour avoir accès aux informations de l’utilisateur, sans qu'il n'ait à se reconnecter quand il navigue d'un service à un autre, en sachant que les API ne peuvent pas partager de session côté serveur.<br/><br/>Cette situation est courante, notamment dans les environnements agiles où l’aspect opérationnel et les délais courts priment sur les exigences techniques et les négociations contractuelles, ce qui donne des APIs très hétérogènes.<br/><br/>*Note : il existe des solutions un peu borderline pour partager une session côté serveur entre APIs de technologies différentes, typiquement PHP et Node.js, mais rien n’atteste de leur stabilité ni de leur sécurité.*
+- Le cas où l’utilisateur doit pouvoir se connecter simultanément à plusieurs APIs indépendantes.<br/><br/>On peut imaginer un site de réservation de voyage où l’API du service client et l’API de réservation ne sont pas codées dans le même langage et/ou ne tournent pas sur le même serveur.<br/><br/>On veut pourtant que les deux APIs partagent la même session pour avoir accès aux informations de l’utilisateur, sans qu'il n'ait à se reconnecter quand il navigue d'un service à un autre, en sachant que les APIs ne peuvent pas partager de session côté serveur.<br/><br/>Cette situation est courante, notamment dans les environnements agiles où l’aspect opérationnel et les délais courts priment sur les exigences techniques et les négociations contractuelles, ce qui donne des APIs très hétérogènes.<br/><br/>*Note : il existe des solutions un peu borderline pour partager une session côté serveur entre APIs de technologies différentes, typiquement PHP et Node.js, mais rien n’atteste de leur stabilité ni de leur sécurité.*
 
 Les puristes du HTTP déplorent également l’aspect stateful ("avec état", lorsque l’état du client est enregistré sur le serveur) du système de session côté serveur, qui entre en contradiction avec la nature stateless ("sans état") de HTTP (tel que défini dans la [RFC 2616](https://tools.ietf.org/html/rfc2616)).
 
@@ -121,7 +121,7 @@ L’idée est de vous permettre de sécuriser votre appli par vous-même, pour f
 
 Ce qui rend JWT très vulnérable, c’est que l’information de la session, qui était historiquement stockée par le serveur, l’est maintenant par le client.
 
-On est donc obligés de lui faire confiance, alors qu’on lui donne beaucoup de pouvoir, et qu’il n’est pas forcément digne de confiance ! On va donc voir quelles précautions prendre assurer nos arrières.
+On est donc obligés de lui faire confiance, alors qu’on lui donne beaucoup de pouvoir, et qu’il n’est pas forcément digne de confiance ! On va donc voir quelles précautions prendre pour assurer nos arrières.
 
 Mais avant de commencer, définissons ce que l’on risque en cas d’attaque réussie du jeton JWT :
 
@@ -219,36 +219,6 @@ Ceux qui ont vu le bureau des légendes connaissent déjà ce principe, c’est 
 
 *Évitez donc d'utiliser la même paire de clés pour votre certificat SSL/TLS que pour vos jetons JWT !*
 
-### Faire confiance au payload
-
-Empêcher la falsification du jeton est une chose, mais limiter l’impact d’une attaque réussie en est une autre.
-
-Il faut admettre que les jetons JWT sont falsifiables, et qu’il faut donc faire le moins confiance possible à l’information qu’ils contiennent.
-
-Quand vous lisez un jeton JWT, vous obtenez des variables qu’il faut filtrer contre les failles XSS, les injections SQL, les LFI, etc. comme si c’était une entrée utilisateur directe !
-
-### Stocker des informations sensibles en clair dans le jeton
-
-Si l’utilisateur ne peut en principe pas modifier le contenu du jeton, il peut tout à fait le lire : il ne faut donc pas y stocker d’informations sensibles en clair, et si possible ne pas y stocker d’informations sensibles du tout !
-
-*Si vous devez absolument stocker une info sensible sur le jeton, mais uniquement pour la comparer à une autre info (comme un mot de passe à comparer à un autre mot de passe) : optez pour le hachage plutôt que le chiffrement. Car ce qui est chiffré est déchiffrable, mais pas ce qui est haché.*
-
-### Utiliser un secret trop simple
-
-Quand on a un jeton JWT, on a accès à son contenu en clair ainsi qu’à sa signature : on peut donc obtenir la clé de chiffrement par bruteforce !
-
-Il va alors falloir utiliser une clé béton !
-
-Si on utilise RSA : il suffit de générer une paire de clés de longueur suffisante avec `openssl` ou `ssh-keygen` (sans passphrase) pour se protéger, et si on utilise HMAC : on ne parle pas réellement de clé mais de "secret", une sorte de mot de passe qui sert de clé de chiffrement.
-
-Comme pour un mot de passe, il faut éviter d’utiliser des mots courants pour prévenir les attaques par dictionnaire. Substituer des lettres par des chiffres n'est pas très efficace, combiner plusieurs mots non plus (dans une certaine mesure évidemment).
-
-Eviter donc les secrets du type : `MySup3rS3cr3t`
-
-Puisque nous n’avons pas à nous souvenir du secret par cœur, qui sera de toute façon stocké sur le serveur, on peut simplement choisir une chaîne de caractères aléatoires de longueur suffisante.
-
-*Mieux vaut exagérer la longueur du secret que la négliger*
-
 ### Ne pas vérifier le KID
 
 Il est possible de spécifier la clé à utiliser pour vérifier la signature d'un jeton dans son header, grâce au champ standard `kid`, qui signifie "Key ID".
@@ -270,7 +240,7 @@ Petit exemple :
 Ici, le serveur va utiliser la clé n°2 pour vérifier la signature du jeton : ce que le développeur a défini comme étant la clé n°2 en fait.
 
 Et comme avec le champ `alg`, un utilisateur malveillant peut modifier le KID de son jeton pour tenter de duper le serveur.
-On va voir deux exemples d'attaque via le KID.
+On va voir trois exemples d'attaque via le KID.
 
 ##### Cas 1:
 
@@ -381,6 +351,36 @@ Mais si vous n'avez pas le choix, pensez à filtrer le KID avec une fonction com
 
 *Attention : c'est la même problématique quand on utilise des fonctions du style `eval()` !*
 
+### Faire confiance au payload
+
+Empêcher la falsification du jeton est une chose, mais limiter l’impact d’une attaque réussie en est une autre.
+
+Il faut admettre que les jetons JWT sont falsifiables, et qu’il faut donc faire le moins confiance possible à l’information qu’ils contiennent.
+
+Quand vous lisez un jeton JWT, vous obtenez des variables qu’il faut filtrer contre les failles XSS, les injections SQL, les LFI, etc. comme si c’était une entrée utilisateur directe !
+
+### Stocker des informations sensibles en clair dans le jeton
+
+Si l’utilisateur ne peut en principe pas modifier le contenu du jeton, il peut tout à fait le lire : il ne faut donc pas y stocker d’informations sensibles en clair, et si possible ne pas y stocker d’informations sensibles du tout !
+
+*Si vous devez absolument stocker une info sensible sur le jeton, mais uniquement pour la comparer à une autre info (comme un mot de passe à comparer à un autre mot de passe) : optez pour le hachage plutôt que le chiffrement. Car ce qui est chiffré est déchiffrable, mais pas ce qui est haché.*
+
+### Utiliser un secret trop simple
+
+Quand on a un jeton JWT, on a accès à son contenu en clair ainsi qu’à sa signature : on peut donc obtenir la clé de chiffrement par bruteforce !
+
+Il va alors falloir utiliser une clé béton !
+
+Si on utilise RSA : il suffit de générer une paire de clés de longueur suffisante avec `openssl` ou `ssh-keygen` (sans passphrase) pour se protéger, et si on utilise HMAC : on ne parle pas réellement de clé mais de "secret", une sorte de mot de passe qui sert de clé de chiffrement.
+
+Comme pour un mot de passe, il faut éviter d’utiliser des mots courants pour prévenir les attaques par dictionnaire. Substituer des lettres par des chiffres n'est pas très efficace, combiner plusieurs mots non plus (dans une certaine mesure évidemment).
+
+Evitez donc les secrets du type : `MySup3rS3cr3t`
+
+Puisque nous n’avons pas à nous souvenir du secret par cœur, qui sera de toute façon stocké sur le serveur, on peut simplement choisir une chaîne de caractères aléatoires de longueur suffisante.
+
+*Mieux vaut exagérer la longueur du secret que la négliger*
+
 ### Ne pas sécuriser la clé
 
 Rien ne sert de prendre des milliers de précautions si la clé de chiffrement n'est pas en sécurité !
@@ -392,7 +392,7 @@ Il ne faut surtout pas que l'utilisateur puisse accéder à la clé :
 
 - Il faut faire attention aux autres vecteurs d'attaques qui pourrait permettre à un attaquant de voler la clé sur le serveur : les failles LFI, mais aussi XXE si vous parsez du XML, SSRF si vous faites des requêtes depuis le back-end, XSS si vous devez générer des PDF sur mesure par exemple, etc.<br><br>Vous trouverez beaucoup de ressources sur Internet en googlant ces noms barbares, mais il est parfois nécessaire de faire appel à un professionnel pour mener un audit complet de l'application à sécuriser.
 
-- Il faut faire attention aux failles OSINT ou relatives au social engineering.<br><br>Il est possible d'avoir une application incroyablement bien sécurisé, mais d'avoir malencontreusement oublié la clé de chiffrement dans le github de l'application, dans le slack de l'équipe, ou dans le trello du projet.<br><br>Autant d'endroits où pourraient s'incruster de petits malins en quête de sensation fortes, ou de véritables pirates qui en ont après votre application.<br><br>Il suffit parfois d'une recherche google bien placée, ou d'un peu de tchatche et d'astuce pour pénétrer ce genre d'endroits.<br><br>Dans [cet article](https://medium.com/intigriti/how-i-hacked-hundreds-of-companies-through-their-helpdesk-b7680ddc2d4c), vous trouverez un exemple d'intrusion dans un canal slack, via l'e-mail de support de la boîte.<br><br>*Il arrive aussi que des développeurs oublient de retirer le dossier .git de la production : ce qui permet à un potentiel pirate de reconstituer tout le code source de l'appli, et éventuellement la clé de chiffrement des jetons ou le mot de passe de la base de données !*
+- Il faut faire attention aux failles OSINT ou relatives au social engineering.<br><br>Il est possible d'avoir une application incroyablement bien sécurisée, mais d'avoir malencontreusement oublié la clé de chiffrement dans le github de l'application, dans le slack de l'équipe, ou dans le trello du projet.<br><br>Autant d'endroits où pourraient s'incruster de petits malins en quête de sensation fortes, ou de véritables pirates qui en ont après votre application.<br><br>Il suffit parfois d'une recherche google bien placée, ou d'un peu de tchatche et d'astuce pour pénétrer ce genre d'endroits.<br><br>Dans [cet article](https://medium.com/intigriti/how-i-hacked-hundreds-of-companies-through-their-helpdesk-b7680ddc2d4c), vous trouverez un exemple d'intrusion dans un canal slack, via l'e-mail de support de la boîte.<br><br>*Il arrive aussi que des développeurs oublient de retirer le dossier .git de la production : ce qui permet à un potentiel pirate de reconstituer tout le code source de l'appli, et éventuellement la clé de chiffrement des jetons ou le mot de passe de la base de données !*
 
 ### Ne pas vérifier la signature
 
@@ -442,7 +442,7 @@ Cette solution n'est pas pratique car on doit stocker l’état révoqué ou non
 
 Il est par ailleurs souvent possible de bypasser cette blacklist, quand y sont directement enregistrés les jetons : rappelons que le header, le payload et la signature sont encodés en base64.
 
-En effet, en base64, le caractère de padding `=` peut faire en sorte que deux chaînes de caractères en base64 différentes, donnent une fois décodées la même chaîne de caractères (sans que mathématiquement ce soit valide, je vous invite à lire la [RFC 4648](https://tools.ietf.org/html/rfc4648) pour plus d'infos).
+En effet, en base64, le caractère de padding `=` peut faire en sorte que deux chaînes de caractères en base64 différentes, donnent une fois décodées la même chaîne de caractères (sans que ce soit mathématiquement valide, je vous invite à lire la [RFC 4648](https://tools.ietf.org/html/rfc4648) pour plus d'infos).
 
 Ça permet de bypasser la blacklist sans rendre le jeton invalide.
 
