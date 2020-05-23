@@ -8,11 +8,11 @@ Dans cet article :
 3. [Les erreurs à éviter](#erreurs)
 
 <span id="intro"></span>
-Si vous vous intéressez à JWT, c’est sûrement que vous êtes familiers avec le développement web ou mobile, et avec la notion de session côté serveur.
+Si vous vous intéressez à JWT, vous êtes sûrement familiers avec le développement web ou mobile, et avec la notion de session côté serveur.
 
 Pour rappel, le principe de la session côté serveur est le suivant : le serveur génère un identifiant de session (le fameux `PHPSESSID` en PHP) qu’il associe à un tableau associatif (`$_SESSION[]` en PHP) et qu’il retourne au client sous forme de cookie (via l’en-tête `Set-Cookie`).
 
-En général, on se sert de cette technologie pour mémoriser les infos de l'utilisateur au cours de sa navigation, et qu'il reste authentifié :
+En général, on se sert de cette technologie pour mémoriser les infos de l'utilisateur au cours de sa navigation, et pour qu'il reste authentifié :
 
 ![Diagramme de séquence du protocole d'authentification avec une session côté serveur](images/session_finish.jpg)
 
