@@ -171,21 +171,19 @@ On a vu qu’on peut spécifier l’algorithme HMAC ou RSA, mais on peut aussi s
 
 Pour se faire, il suffit de changer le header comme ceci :
 
-```json
-{
- "alg" : "HS256" "none",
- "typ" : "JWT"
-}
-```
+<div class="language-json highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="p">{</span><span class="w">
+	</span><span class="nl">"alg"</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="s2"><strike>"HS256"</strike></span><span class="w"> </span><span class="s2">"none"</span><span class="p">,</span><span class="w">
+ </span><span class="nl">"typ"</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="s2">"JWT"</span><span class="w">
+</span><span class="p">}</span><span class="w">
+</span></code></pre></div></div>
 
 De modifier le payload comme on le souhaite :
 
-```json
-{
-	"username" : "h4xor",
-	"isAdmin" : 0 1,
-}
-```
+<div class="language-json highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="p">{</span><span class="w">
+	</span><span class="nl">"username"</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="s2">"h4xor"</span><span class="p">,</span><span class="w">
+	</span><span class="nl">"isAdmin"</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="mi"><strike>0</strike></span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w">
+</span><span class="p">}</span><span class="w">
+</span></code></pre></div></div>
 
 Puis de retirer la signature du jeton :
 
